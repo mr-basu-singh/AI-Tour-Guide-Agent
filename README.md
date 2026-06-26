@@ -1,4 +1,4 @@
-markdown# 🗺️ AI Tour Guide Agent
+🗺️ AI Tour Guide Agent
 
 A production-grade **multi-agent AI travel planner** built with LangGraph, LangChain, and Groq. It suggests real destinations, plans complete trips with grounded costs, and generates downloadable PDF itineraries — all for free.
 
