@@ -1,0 +1,30 @@
+# virtual environment
+.venv/
+
+# python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# environment secrets
+.env
+
+# LLM cache
+.langchain.db
+.search_cache.json
+
+# generated files
+trip_plan.pdf
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# test files
+test_*.py

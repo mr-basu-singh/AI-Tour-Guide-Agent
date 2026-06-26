@@ -1,0 +1,19 @@
+[project]
+name = "tour-guide-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "json-repair>=0.61.0",
+    "langchain>=1.3.10",
+    "langchain-community>=0.4.2",
+    "langchain-groq>=1.1.3",
+    "langchain-tavily>=0.2.18",
+    "langgraph>=1.2.6",
+    "pydantic>=2.13.4",
+    "python-dotenv>=1.2.2",
+    "reportlab>=5.0.0",
+    "requests>=2.34.2",
+    "streamlit>=1.58.0",
+]
