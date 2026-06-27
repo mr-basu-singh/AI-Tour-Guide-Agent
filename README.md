@@ -1,4 +1,4 @@
-🗺️ AI Tour Guide Agent
+# 🗺️ AI Tour Guide Agent
 
 A production-grade **multi-agent AI travel planner** built with LangGraph, LangChain, and Groq. It suggests real destinations, plans complete trips with grounded costs, and generates downloadable PDF itineraries — all for free.
 
@@ -22,34 +22,30 @@ A production-grade **multi-agent AI travel planner** built with LangGraph, LangC
 ---
 
 ## Architecture — 7 Specialist Agents
-User Form → Intake Agent → Research Agent (+ Feasibility Loop)
 
-↓
-
-User Picks a Place
-
-↓
-
-Route Agent → Itinerary Agent → Hotel Agent
-
-↓
-
-Budget Agent (Python math) → Finalize Agent
-
-↓
-
-Full Plan + PDF + Refinement Loop
+```
+User Form → Intake Agent → Research Agent (includes feasibility loop)
+                                    ↓
+                            User Picks a Place
+                                    ↓
+              Route Agent → Itinerary Agent → Hotel Agent
+                                    ↓
+                  Budget Agent (Python math) → Finalize Agent
+                                    ↓
+                        Full Plan + PDF + Refinement Loop
+```
 
 | Agent | Role | Type |
 |-------|------|------|
-| **Intake** | Validates input, detects home currency, blocks injection | Deterministic |
-| **Research** | Searches destinations, ranks by fit, feasibility-checks each one | Tool-using (Tavily) |
-| **Feasibility** | Checks travel time, reachability, and budget fit per suggestion | Tool-using (Tavily) |
-| **Route** | Multi-leg routing with hub detection, per-leg grounded fares | Tool-using (Tavily) |
-| **Itinerary** | Day-wise plan with morning/afternoon/evening activities + food | Tool-using (Tavily) |
-| **Hotel** | Real hotel names with prices, room configuration in Python | Tool-using (Tavily) |
-| **Budget** | All arithmetic in Python — never the LLM. Currency-aware. | Deterministic |
-| **Finalize** | Packing list, safety notes, booking links (multi-site), map link | Tool-using (Tavily) |
+| **Intake** | Validates input, detects home currency, blocks prompt injection | Deterministic (Python only) |
+| **Research** | Tavily search, suggests 3-5 places, runs feasibility check on each (travel time, reachability, budget fit), rejects and re-searches if needed | Tool-using (Tavily) |
+| **Route** | Multi-leg routing with gateway hub detection, grounded per-leg fares, cab = per vehicle, bus = per person | Tool-using (Tavily) |
+| **Itinerary** | 5-7 activities per day with morning/afternoon/evening structure + real food spot recommendations | Tool-using (Tavily) |
+| **Hotel** | Real hotel names with per-night rates, room configuration computed in Python from group type | Tool-using (Tavily) |
+| **Budget** | All arithmetic in Python — never the LLM. Currency-aware. Per-vehicle vs per-person. Timing-aware hotel nights. | Deterministic (Python only) |
+| **Finalize** | Season-aware packing list, route safety notes, multi-site booking links, Google Maps destination link | Tool-using (Tavily) |
+
+> **Note on feasibility:** The feasibility check (`feasibility.py`) is not a standalone agent — it's a function called inside the Research Agent's loop. Each suggested place is checked for travel time, transport reachability, and budget fit. Rejected places are excluded and the agent re-searches with different options.
 
 ---
 
@@ -64,7 +60,7 @@ Full Plan + PDF + Refinement Loop
 - **Model tiering**: `llama-3.1-8b-instant` for parsing/classification, `llama-3.3-70b-versatile` for reasoning — saves quota, improves speed.
 - **Structured output with retry + JSON repair**: Pydantic schemas + automatic `json-repair` fallback for Groq's occasional formatting slips.
 - **Graceful degradation**: If one agent fails, the system returns a partial plan with an explanation, not a crash.
-- **Runaway caps**: LangGraph `recursion_limit` + max searches per agent prevent infinite loops.
+- **Runaway caps**: Max searches per agent prevent infinite loops.
 
 ### Smart Routing
 - **Feasibility loop**: Each suggested destination is checked for reachability by the user's transport mode + travel time before showing.
@@ -118,8 +114,7 @@ Full Plan + PDF + Refinement Loop
 ```bash
 git clone https://github.com/mr-basu-singh/AI-Tour-Guide-Agent.git
 cd AI-Tour-Guide-Agent
-uv init
-uv add langgraph langchain langchain-groq langchain-tavily langchain-community python-dotenv pydantic streamlit requests reportlab json-repair
+uv sync
 ```
 
 ### Configure
@@ -139,76 +134,51 @@ uv run streamlit run app.py
 
 Opens at `http://localhost:8501`
 
+### Quick Start
+
+1. Open the app, read the intro, scroll to the form
+2. Fill 7 pages (only city, country, dates, and travelers are required — everything else has smart defaults)
+3. Pick a destination from the AI suggestions → get your full trip plan with PDF download
+
 ---
 
 ## Project Structure
+
+```
 AI-Tour-Guide-Agent/
-
 ├── app.py                    # Streamlit UI (7-page wizard)
-
 ├── .env                      # API keys (not committed)
-
 ├── .gitignore
-
 ├── DESIGN.md                 # Architecture blueprint
-
 ├── README.md
-
 ├── src/
-
-│   ├── init.py
-
+│   ├── __init__.py
 │   ├── config.py             # LLM clients, caching, structured output retry
-
 │   ├── state.py              # Shared agent state (TypedDict)
-
 │   ├── schemas.py            # Pydantic models for all data
-
 │   ├── safety.py             # Input validation + injection protection
-
 │   ├── pipeline.py           # Phase 1 (suggest) + Phase 2 (plan) runners
-
 │   ├── rooms.py              # Room allocation logic (pure Python)
-
 │   ├── refine.py             # Refinement loop (cheaper/swap/change)
-
 │   ├── agents/
-
-│   │   ├── init.py
-
+│   │   ├── __init__.py
 │   │   ├── intake.py         # Validates input, detects currency
-
 │   │   ├── research.py       # Suggests destinations + feasibility check
-
-│   │   ├── feasibility.py    # Travel time + budget gate per suggestion
-
-│   │   ├── select.py         # Human-in-the-loop place selection
-
+│   │   ├── feasibility.py    # Travel time + budget gate (called by research)
 │   │   ├── route.py          # Multi-leg routing with grounded fares
-
 │   │   ├── itinerary.py      # Day-wise plan with food + activities
-
 │   │   ├── hotel.py          # Hotel search + room configuration
-
 │   │   ├── budget.py         # All cost math in Python
-
 │   │   └── finalize.py       # Packing, safety, booking links, map
-
 │   ├── tools/
-
-│   │   ├── init.py
-
+│   │   ├── __init__.py
 │   │   ├── search.py         # Tavily wrapper with disk cache
-
 │   │   ├── currency.py       # Frankfurter API + country-to-currency
-
 │   │   └── links.py          # Booking link generators (multi-site)
-
 │   └── output/
-
-│       ├── init.py
-
+│       ├── __init__.py
 │       └── pdf.py            # ReportLab PDF generator
+```
 
 ---
 
@@ -217,7 +187,7 @@ AI-Tour-Guide-Agent/
 | Scenario | What a naive agent does | What this agent does |
 |----------|------------------------|---------------------|
 | Delhi → Jibhi by bus | "Direct bus, ₹899" | "No direct bus. Delhi → Aut by bus (₹498–₹5000), then Aut → Jibhi by cab (~₹1000–₹1200/vehicle)" |
-| Hotel price in USD | Shows "$70/night" as ₹70 | Currency-aware floor filters implausible prices; estimates from budget instead |
+| Hotel price in USD | Shows "$70/night" as ₹70 | Currency-aware price floor filters implausible prices; estimates from budget instead |
 | 3-day trip to Chennai from UP | Suggests it normally | Feasibility check rejects it (30+ hrs by bus for a 3-day trip) |
 | Budget ₹12,000 | Plans ₹5,400 skeleton trip | Uses budget intelligently — better hotel, richer itinerary, 5-7 activities/day |
 | User lives in Delhi | Suggests Delhi as destination | Origin exclusion prevents suggesting the traveler's own city |
@@ -226,16 +196,19 @@ AI-Tour-Guide-Agent/
 ---
 
 ## How the Budget Works
+
+```
 Transport total = Σ (per-leg cost × travelers × 2)     ← round trip
+                  cab legs: cost × vehicles × 2         ← per vehicle, not per person
 
-cab legs: cost × vehicles × 2         ← per vehicle, not per person
 Hotel total     = nightly rate × nights × rooms         ← nights adjusted for departure timing
-Food            = 400/person/day × travelers × days     ← rough estimate
 
-Local transport = 300/day × days                        ← rough estimate
-
+Food            = per-person-per-day × travelers × days ← ₹400 for INR, $20 for USD
+Local transport = per-day × days                        ← ₹300 for INR, $15 for USD
 Buffer          = 10% of subtotal                       ← for surprises
+
 All multiplication done in Python. LLM only supplies the unit rates from search.
+```
 
 ---
 
@@ -245,10 +218,12 @@ After getting your plan, type any of these:
 
 | Command | What happens |
 |---------|-------------|
-| "make it cheaper" | Lowers hotel budget band, re-runs budget math instantly |
-| "swap the hotel" | Searches for alternative hotels, re-runs budget |
-| "change day 2" | Re-generates itinerary with your feedback |
+| "make it cheaper" | Lowers hotel budget band, re-runs budget math instantly (budget agent only) |
+| "swap the hotel" | Searches for alternative hotels via hotel agent, then re-runs budget agent |
+| "change day 2" | Re-generates itinerary via itinerary agent with your feedback |
 | "change the place" | Asks you to start over with a new destination |
+
+Each refinement command targets only the relevant agent(s) — the full pipeline does not re-run, which is why refinement is instant.
 
 ---
 
